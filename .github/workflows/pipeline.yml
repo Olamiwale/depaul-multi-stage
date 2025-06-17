@@ -1,0 +1,42 @@
+name: CI-CD Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    env:
+      ACR_NAME: briitzacr
+      IMAGE_NAME: app
+      TAG: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR login
+        run: az acr login --name $ACR_NAME
+
+      - name: Build image
+        run: docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG ./backend
+
+      - name: Push image
+        run: docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG
+
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: briitz
+          cluster-name: briitzCluster
+
+      - name: Deploy to AKS
+        run: |
+          kubectl apply -f ./k8s/dev/deployment.yaml
+          kubectl apply -f ./k8s/dev/service.yaml
+          kubectl set image deployment/app-deployment app=$ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG
