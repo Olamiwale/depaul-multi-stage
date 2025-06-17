@@ -47,7 +47,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.event.inputs.tag }} ./backend
+          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.event.inputs.tag }} ./app
 
       - name: Push Docker image
         run: |
@@ -56,8 +56,8 @@ jobs:
       - name: Set AKS context
         uses: azure/aks-set-context@v3
         with:
-          resource-group: briitz
-          cluster-name: briitzCluster
+          resource-group: depaul
+          cluster-name: depaulCluster
 
       - name: Deploy to AKS
         run: |
