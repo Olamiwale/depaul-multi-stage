@@ -1,18 +1,30 @@
-name: CI-CD Pipeline
+name: Multi-stage Deploy Pipeline
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      tag:
+        description: "Image tag (e.g., dev, staging, v1.0.0)"
+        required: true
+        default: dev
 
 jobs:
-  deploy-dev:
+  deploy:
     runs-on: ubuntu-latest
     env:
-      ACR_NAME: briitzacr
+      ACR_NAME: depaulacr
       IMAGE_NAME: app
-      TAG: dev
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Azure login
@@ -20,14 +32,16 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: ACR login
+      - name: Login to ACR
         run: az acr login --name $ACR_NAME
 
-      - name: Build image
-        run: docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG ./backend
+      - name: Build Docker image
+        run: |
+          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.event.inputs.tag }} ./backend
 
-      - name: Push image
-        run: docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG
+      - name: Push Docker image
+        run: |
+          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.event.inputs.tag }}
 
       - name: Set AKS context
         uses: azure/aks-set-context@v3
@@ -37,6 +51,8 @@ jobs:
 
       - name: Deploy to AKS
         run: |
-          kubectl apply -f ./k8s/dev/deployment.yaml
-          kubectl apply -f ./k8s/dev/service.yaml
-          kubectl set image deployment/app-deployment app=$ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG
+          kubectl apply -f ./k8s/${{ github.event.inputs.environment }}/deployment.yaml
+
+          kubectl apply -f ./k8s/${{ github.event.inputs.environment }}/service.yaml
+
+          kubectl set image deployment/app-deployment app=$ACR_NAME.azurecr.io/$IMAGE_NAME:${{ github.event.inputs.tag }}
