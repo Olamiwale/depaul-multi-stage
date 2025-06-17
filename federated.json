@@ -5,6 +5,3 @@
   "description": "GitHub Actions OIDC federated credential",
   "audiences": ["api://AzureADTokenExchange"]
 }
-
-
-
